@@ -38,9 +38,20 @@ class ExpenseTracker(object):
         pass
     
     def search(self, search_str):
-        self.xml_tree.findall('.//' + search_str)
-        
-    
+        return self.xml_tree.findall(search_str)
+   
     def write(self):
         self.xml_tree.write(self.xml_file, xml_declaration = True, encoding='utf-8')
         return 'XML saved. See it as '+ self.xml_file + '.' 
+
+    def create_command(self, command):
+        if 'today' in command: # today breakfast/lunch/dinner price
+            data = command.split()
+            
+            
+
+    def create_query(self, query_string): # dotaz bude vypadat asi takto - s BarterBot najdi mesic MESIC/E den DEN/-DEN nebo BarterBot dnes snidane/obed/vecere cena
+        basic_query = '.'
+        query_list = query_string.split()
+
+        
