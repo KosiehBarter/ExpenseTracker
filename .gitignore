@@ -105,3 +105,5 @@ ENV/
 
 # mypy
 .mypy_cache/
+lib64
+pyvenv.cfg
