@@ -1,10 +1,11 @@
 import xml.etree.ElementTree as ET
 import os
 import time
+import re
 
 
 class ExpenseTracker(object):
-    def __init__(self, user_name = 'RandomUsername'):
+    def __init__(self, user_name = 'RandomUsername', lunchcard_copay = 60):
         # super(ExpenseTracker,__init__())
         self.xml_file = None
         self.xml_root = None
@@ -15,8 +16,12 @@ class ExpenseTracker(object):
         self.curr_month = time.strftime("Month_%m")
         self.curr_day = time.strftime("Day_%d")
 
+        # Additional costs
+        self.lunchcard_copay = lunchcard_copay
+
         # Current data in cache
         self.current_elem = None
+        self.data_list = []
 
     def check_xml_presence(self):
         if not os.path.exists(self.user_name + '_' + time.strftime("%Y") + '.xml'):
@@ -45,17 +50,27 @@ class ExpenseTracker(object):
         return 'XML saved. See it as '+ self.xml_file + '.' 
 
     def recognize_command(self, command):
+        # start with 'generalizing'
+        if 'today' in command: # today breakfast something
+            command = time.strftime('%m/%d/%Y') + command[5:]
+            print(command)
+        if '.' in command:
+            command = command.split('.')[1] + '/' + command.split('.')[0] + '/' + command[6:]
+
+        tmp_list = re.split('\ |/', command) # Format 09 29 2017 breakfast 30 (lunchcard) (alter/delete)-this must be last!
+        self.data_list.append(int(tmp_list[2]))
+        self.data_list.append(int(tmp_list[0]))
+        self.data_list.append(int(tmp_list[1]))
+       
+        # Arrange remaining data
+        self.data_list.append(tmp_list[3])
+        self.data_list.append(int(tmp_list[4]))
+        # Additionally, additional commands
+        if 'lunchcard' in command: # Substract employer's donation to see the real paid amount
+            self.data_list[-1] = self.data_list[-1] - self.lunchcard_copay
+        # Finally, add instructions
+        if 'alter' in command or 'delete' in command:
+            self.data_list.append(tmp_list[-1])
+    
+    def execute_command(self):
         pass
-
-#    def create_command(self, command):
-#        if 'today' in command: # today breakfast/lunch/dinner price
-#            data = command.split()
-#        
-#            
-#            
-#
-#    def create_query(self, query_string): # dotaz bude vypadat asi takto - s BarterBot najdi mesic MESIC/E den DEN/-DEN nebo BarterBot dnes snidane/obed/vecere cena
-#        basic_query = '.'
-#        query_list = query_string.split()
-
-        
