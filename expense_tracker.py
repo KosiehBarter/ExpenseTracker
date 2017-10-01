@@ -1,76 +1,83 @@
-import xml.etree.ElementTree as ET
-import os
+from xml.etree import ElementTree as ET
+from os.path import exists as ospathexists
 import time
 import re
 
-
 class ExpenseTracker(object):
-    def __init__(self, user_name = 'RandomUsername', lunchcard_copay = 60):
+    def __init__(self, user_name = 'RandomUsername'):
         # super(ExpenseTracker,__init__())
         self.xml_file = None
         self.xml_root = None
         self.xml_tree = None
         # general
         self.user_name = user_name
-        # Time related
-        self.curr_month = time.strftime("Month_%m")
-        self.curr_day = time.strftime("Day_%d")
-
-        # Additional costs
-        self.lunchcard_copay = lunchcard_copay
-
-        # Current data in cache
-        self.current_elem = None
-        self.data_list = []
+        self.current_time = time.strftime('Year_%Y/Month_%m/Day_%d') # format already in reverse
 
     def check_xml_presence(self):
-        if not os.path.exists(self.user_name + '_' + time.strftime("%Y") + '.xml'):
+        if not ospathexists(self.user_name + '.xml'):
             self.init_xml()
         else:
-            self.xml_file = self.user_name + '_' + time.strftime("%Y") + '.xml'
+            self.xml_file = self.user_name + '.xml'
             self.xml_tree = ET.parse(self.xml_file)
             self.xml_root = self.xml_tree.getroot()
 
     def init_xml(self):
-       self.xml_root = ET.Element(self.user_name + "_" +time.strftime("%Y"))
-       self.xml_file = self.user_name + '_' + time.strftime("%Y" + '.xml')
+       self.xml_root = ET.Element(time.strftime(self.user_name))
+       self.xml_file = self.user_name + ".xml"
        self.xml_tree = ET.ElementTree(self.xml_root)
 
     def append(self, parent_elem, tag_name):
-        ET.SubElement(parent_elem, tag_name)
+        return ET.SubElement(parent_elem, tag_name)
 
-    def attrib_set(self, elem, attr_dict):
-        pass
+    def attrib_set(self, elem, data, data_val):
+        elem.set(data, str(data_val))
     
-    def search(self, search_str):
-        return self.xml_tree.findall(search_str)
+    # Search specified element
+    def search(self, search_str, in_elem):
+        search_res = in_elem.findall(search_str)
+        if search_res != []:
+            return search_res[0]
+        else:
+            return [in_elem.findall('.')[0]] # Return parent in list instead
    
     def write(self):
+        self.indent(self.xml_root)
         self.xml_tree.write(self.xml_file, xml_declaration = True, encoding='utf-8')
         return 'XML saved. See it as '+ self.xml_file + '.' 
 
-    def recognize_command(self, command):
-        # start with 'generalizing'
-        if 'today' in command: # today breakfast something
-            command = time.strftime('%m/%d/%Y') + command[5:]
-            print(command)
-        if '.' in command:
-            command = command.split('.')[1] + '/' + command.split('.')[0] + '/' + command[6:]
-
-        tmp_list = re.split('\ |/', command) # Format 09 29 2017 breakfast 30 (lunchcard) (alter/delete)-this must be last!
-        self.data_list.append(int(tmp_list[2]))
-        self.data_list.append(int(tmp_list[0]))
-        self.data_list.append(int(tmp_list[1]))
-       
-        # Arrange remaining data
-        self.data_list.append(tmp_list[3])
-        self.data_list.append(int(tmp_list[4]))
-        # Additionally, additional commands
-        if 'lunchcard' in command: # Substract employer's donation to see the real paid amount
-            self.data_list[-1] = self.data_list[-1] - self.lunchcard_copay
-        # Finally, add instructions
-        if 'alter' in command or 'delete' in command:
-            self.data_list.append(tmp_list[-1])
+    def process(self, in_time = None):
+        if in_time is None:
+            in_time = self.current_time
+        return self._process_rec(self.xml_root, in_time)
     
-    def execute_command(self):
-        pass
+    def _process_rec(self, in_elem, path_string, search_ind = 0):
+        tmp_path = path_string.split('/')
+        # Try to search subelement
+        if search_ind < len(tmp_path):
+            elem = self.search('./' + tmp_path[search_ind], in_elem)
+        else:
+            return in_elem
+        # Continue, if we haven't reached end of the list
+        if type(elem) is not list:
+            return self._process_rec(elem, path_string, search_ind + 1)
+        elif type(elem) is list:
+            elem = self.append(elem[0], tmp_path[search_ind])
+            return self._process_rec(elem, path_string, search_ind + 1)
+            
+    # Tools - Indent
+    def indent(self, elem, level=0):
+        i = "\n" + level*"  "
+        j = "\n" + (level-1)*"  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for subelem in elem:
+                self.indent(subelem, level+1)
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = j
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = j
+        return elem
